@@ -1,16 +1,21 @@
 package se.devcode.graph.ants;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tools.ant.taskdefs.Concat;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.collect.UnmodifiableIterator;
 import com.thinkaurelius.titan.core.TitanFactory;
 import com.thinkaurelius.titan.core.TitanGraph;
@@ -49,13 +54,42 @@ public class FindPath {
 		skapaTransport(graph, tc, liljeholmen, 5, 3, "Tunnelbana röd");
 		skapaTransport(graph, tc, centralstationen, 5, 0, "Gång");
 		skapaTransport(graph, centralstationen, södertälje, 22, 20, "sj tåg");
-		skapaTransport(graph, centralstationen, södertälje, 38, 15, "pendeltåg 41");
-
-		System.out.println(jakobsberg);
-		System.out.println(jakobsberg.keys());
-		jakobsberg.edges(Direction.BOTH).forEachRemaining(t -> System.out.println(t));
+//		skapaTransport(graph, centralstationen, södertälje, 38, 15, "pendeltåg 41");
 
 		findPath(graph, jakobsberg, södertälje, 100, 5);
+
+		print(jakobsberg);
+	}
+
+	private static void print(TitanVertex aPlace) {
+		StringBuffer result = new StringBuffer();
+
+		result.append("från: ").append(aPlace.property("namn").value()).append("\n");
+
+		Map<String, Edge> incomingEdgesBySourceName = Lists.newArrayList(aPlace.edges(Direction.IN)).stream()
+				.collect(Collectors.toMap(t1 -> (String) t1.outVertex().edges(Direction.IN).next().outVertex()
+						.property("namn").value(), e -> e));
+		Map<String, Edge> outgoingEdgesByTargetName = Lists.newArrayList(aPlace.edges(Direction.OUT)).stream()
+				.collect(Collectors.toMap(t1 -> (String) t1.inVertex().edges(Direction.OUT).next().inVertex()
+						.property("namn").value(), e -> e));
+		
+		Set<String> adjecentPlaceNames = Sets.union(incomingEdgesBySourceName.keySet(),
+				outgoingEdgesByTargetName.keySet());
+		
+		adjecentPlaceNames.forEach(tillplats -> {
+			result.append("  till ").append(tillplats);
+			
+			Integer inLFF = (Integer) incomingEdgesBySourceName.get(tillplats).outVertex().property("lff").value();
+			Integer inFF = (Integer) incomingEdgesBySourceName.get(tillplats).outVertex().property("ff").value();
+			Integer outLFF = (Integer) outgoingEdgesByTargetName.get(tillplats).outVertex().property("lff").value();
+			Integer outFF = (Integer) outgoingEdgesByTargetName.get(tillplats).outVertex().property("ff").value();
+			
+			int x = inFF + inLFF + outFF + outLFF;
+			
+			result.append(x);
+		});
+
+		System.out.println(result.toString());
 	}
 
 	private static void findPath(TitanGraph graph, TitanVertex a, TitanVertex b, int ticks, int nAnts) {
@@ -71,21 +105,7 @@ public class FindPath {
 	}
 
 	private static void tick(TitanGraph graph, ArrayList<Ant> ants) {
-		UnmodifiableIterator<Vertex> transports = Iterators.filter(graph.vertices(), arg0 -> {
-			if (arg0 instanceof TitanVertex) {
-				TitanVertex tVertex = (TitanVertex) arg0;
-				return Objects.equals(tVertex.property("typ").value(), "transport");
-			}
-			return false;
-		});
-
-		transports.forEachRemaining(t -> {
-			Integer lff = (Integer) t.property("lff").value();
-			Integer ff = (Integer) t.property("ff").value();
-
-			t.property("lff", lff <= 0 ? 0 : lff--);
-			t.property("ff", ff <= 0 ? 0 : ff--);
-		});
+		decreaseOdor(graph);
 
 		ants.forEach(t -> {
 			if (t.getWaittime() > 0) {
@@ -101,21 +121,57 @@ public class FindPath {
 			}
 
 			if (t.isInAPlace()) {
-				Iterator<CalculatingUnit> inCUs = Iterators.transform(t.getPosition().edges(Direction.IN),
-						arg0 -> new CalculatingUnit(arg0, Direction.IN));
-				Iterator<CalculatingUnit> outCUs = Iterators.transform(t.getPosition().edges(Direction.OUT),
-						arg0 -> new CalculatingUnit(arg0, Direction.OUT));
-				
-				Iterator<CalculatingUnit> x = Iterators.concat(inCUs, outCUs);
-				
-				ArrayList<CalculatingUnit> cus = Lists.newArrayList(x);
-				
-				if (t.getMode() == Mode.LFF)
-				{
-					cus.forEach(cu -> cu.modifyProbabilities(t.getMode()));
+				Vertex aPlace = t.getPosition();
+				Map<String, Edge> incomingEdgesBySourceName = Lists.newArrayList(aPlace.edges(Direction.IN)).stream()
+						.collect(Collectors.toMap(t1 -> (String) t1.outVertex().edges(Direction.IN).next().outVertex()
+								.property("namn").value(), e -> e));
+				Map<String, Edge> outgoingEdgesByTargetName = Lists.newArrayList(aPlace.edges(Direction.OUT)).stream()
+						.collect(Collectors.toMap(t1 -> (String) t1.inVertex().edges(Direction.OUT).next().inVertex()
+								.property("namn").value(), e -> e));
+
+				Set<String> adjecentPlaceNames = Sets.union(incomingEdgesBySourceName.keySet(),
+						outgoingEdgesByTargetName.keySet());
+
+				Map<String, CalculatingUnit> calculatingUnitsByAdjecentPlaceName = adjecentPlaceNames.stream() //
+						.map(name -> new CalculatingUnit(name, incomingEdgesBySourceName.get(name),
+								outgoingEdgesByTargetName.get(name))) //
+						.collect(Collectors.toMap(cu -> cu.getName(), cu -> cu));
+
+				calculatingUnitsByAdjecentPlaceName.values().forEach(cu -> cu.modifyProbabilities(t.getMode()));
+
+				CalculatingUnit selectedExit = CalculatingUnit.randomizeAnExit(calculatingUnitsByAdjecentPlaceName);
+
+				Vertex nextTransport = selectedExit.getAdjecentTransport();
+
+				Integer tid = (Integer) nextTransport.property("tid").value();
+				Integer frekvens = (Integer) nextTransport.property("frekvens").value();
+
+				Integer waitTime = tid;
+				if (0 < frekvens) {
+					waitTime = waitTime + new Random().nextInt(frekvens);
 				}
-				
+
+				t.setPosition(nextTransport);
+				t.setWaittime(waitTime);
 			}
+		});
+	}
+
+	private static void decreaseOdor(TitanGraph graph) {
+		UnmodifiableIterator<Vertex> transports = Iterators.filter(graph.vertices(), arg0 -> {
+			if (arg0 instanceof TitanVertex) {
+				TitanVertex tVertex = (TitanVertex) arg0;
+				return Objects.equals(tVertex.property("typ").value(), "transport");
+			}
+			return false;
+		});
+
+		transports.forEachRemaining(t -> {
+			Integer lff = (Integer) t.property("lff").value();
+			Integer ff = (Integer) t.property("ff").value();
+
+			t.property("lff", lff <= 0 ? 0 : lff--);
+			t.property("ff", ff <= 0 ? 0 : ff--);
 		});
 	}
 

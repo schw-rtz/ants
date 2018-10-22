@@ -1,7 +1,8 @@
 package se.devcode.graph.ants;
 
-public class PairXY<X, Y> {
+import java.util.Comparator;
 
+public class PairXY<X, Y> {
 	private X x;
 	private Y y;
 
