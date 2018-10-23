@@ -11,13 +11,19 @@ public class Ant {
 	private Vertex position;
 	private int waittime = 0;
 	private Mode mode = Mode.LFF;
+	private int antName;
 
-	public Ant(TitanVertex a) {
+	public Ant(int n, TitanVertex a) {
+		antName = n;
 		position = a;
 	}
 
 	public int getWaittime() {
 		return waittime;
+	}
+
+	public void setMode(Mode mode) {
+		this.mode = mode;
 	}
 
 	public void decreaseWait() {
@@ -43,11 +49,11 @@ public class Ant {
 	public void makeItSmell() {
 		if (mode == Mode.LFF) {
 			Integer lff = (Integer) position.property("lff").value();
-			position.property("lff", lff++);
+			position.property("lff", lff + 1);
 		}
 		if (mode == Mode.FF) {
 			Integer ff = (Integer) position.property("ff").value();
-			position.property("ff", ff++);
+			position.property("ff", ff + 1);
 		}
 	}
 
@@ -57,6 +63,11 @@ public class Ant {
 
 	public Mode getMode() {
 		return mode;
+	}
+
+	@Override
+	public String toString() {
+		return "Ant [antName=" + antName + ", mode=" + mode + ", position=" + position + ", waittime=" + waittime + "]\n";
 	}
 
 }

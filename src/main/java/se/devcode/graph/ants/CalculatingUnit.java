@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 
-import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
@@ -60,13 +59,15 @@ public class CalculatingUnit {
 
 	public void modifyProbabilities(Mode mode) {
 		if (mode == Mode.LFF) {
-			inLFF = inLFF / 2.0;
+			inLFF = - inLFF / 2.0;
 			inFF = inFF * 2.0;
 		}
 
 		if (mode == Mode.FF) {
 			inLFF = inLFF * 2.0;
-			inFF = inFF / 2.0;
+			inFF = - inFF / 2.0;
+			outLFF = outLFF / 2.0;
+			outFF = outFF / 2.0;
 		}
 
 		outLFF = outLFF / 2.0;
@@ -105,7 +106,16 @@ public class CalculatingUnit {
 	}
 
 	protected Double getOdorSum() {
-		return inFF + inLFF + outFF + outLFF;
+		double d = inFF + inLFF + outFF + outLFF;
+		return d < 0 ? 0 : d;
 	}
 
+	@Override
+	public String toString() {
+		return "CalculatingUnit [name=" + name + ", inLFF=" + inLFF + ", inFF=" + inFF + ", outLFF=" + outLFF
+				+ ", outFF=" + outFF + "]";
+	}
+
+	
+	
 }

@@ -1,7 +1,6 @@
 package se.devcode.graph.ants;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
@@ -11,7 +10,6 @@ import java.util.stream.Collectors;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -56,7 +54,7 @@ public class FindPath {
 		skapaTransport(graph, centralstationen, södertälje, 22, 20, "sj tåg");
 		// skapaTransport(graph, centralstationen, södertälje, 38, 15, "pendeltåg 41");
 
-		findPath(graph, jakobsberg, södertälje, 1000, 200);
+		findPath(graph, jakobsberg, islandstorget, 100, 15);
 
 		printStatus(graph);
 	}
@@ -107,19 +105,24 @@ public class FindPath {
 	private static void findPath(TitanGraph graph, TitanVertex a, TitanVertex b, int ticks, int nAnts) {
 		ArrayList<Ant> ants = new ArrayList<>();
 		for (int i = 0; i < nAnts; i++) {
-			ants.add(new Ant(a));
+			ants.add(new Ant(i, a));
 		}
 
 		for (int tick = 0; tick < ticks; tick++) {
-			tick(graph, ants);
+			tick(tick, graph, ants, a, b);
 		}
 
 	}
 
-	private static void tick(TitanGraph graph, ArrayList<Ant> ants) {
-		// decreaseOdor(graph, ants);
-		//printStatus(graph);
-		
+	private static void tick(int tick, TitanGraph graph, ArrayList<Ant> ants, TitanVertex start, TitanVertex goal) {
+		if (tick % 3 == 0) {
+			decreaseOdor(graph, ants);
+		}
+
+		if (tick % 13 == 0) {
+			System.out.println(ants);
+			printStatus(graph);
+		}
 		ants.forEach(t -> {
 			if (t.getWaittime() > 0) {
 				t.decreaseWait();
@@ -135,6 +138,14 @@ public class FindPath {
 
 			if (t.isInAPlace()) {
 				Vertex aPlace = t.getPosition();
+				if (Objects.equals(aPlace, start)) {
+					t.setMode(Mode.LFF);
+				}
+
+				if (Objects.equals(aPlace, goal)) {
+					t.setMode(Mode.FF);
+				}
+
 				Map<String, Edge> incomingEdgesBySourceName = Lists.newArrayList(aPlace.edges(Direction.IN)).stream()
 						.collect(Collectors.toMap(t1 -> (String) t1.outVertex().edges(Direction.IN).next().outVertex()
 								.property("namn").value(), e -> e));
@@ -171,16 +182,10 @@ public class FindPath {
 	}
 
 	private static void decreaseOdor(TitanGraph graph, ArrayList<Ant> ants) {
-		UnmodifiableIterator<Vertex> transports = Iterators.filter(graph.vertices(), arg0 -> {
-			if (arg0 instanceof TitanVertex) {
-				TitanVertex tVertex = (TitanVertex) arg0;
-				return Objects.equals(tVertex.property("typ").value(), "transport");
-			}
-			return false;
-		});
+		UnmodifiableIterator<Vertex> transports = Iterators.filter(graph.vertices(),
+				tVertex -> Objects.equals(tVertex.property("typ").value(), "transport"));
 
 		transports.forEachRemaining(t -> {
-
 			Integer lff = (Integer) t.property("lff").value();
 			Integer ff = (Integer) t.property("ff").value();
 
