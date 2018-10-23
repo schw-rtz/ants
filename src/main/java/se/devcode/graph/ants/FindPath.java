@@ -54,39 +54,51 @@ public class FindPath {
 		skapaTransport(graph, tc, liljeholmen, 5, 3, "Tunnelbana röd");
 		skapaTransport(graph, tc, centralstationen, 5, 0, "Gång");
 		skapaTransport(graph, centralstationen, södertälje, 22, 20, "sj tåg");
-//		skapaTransport(graph, centralstationen, södertälje, 38, 15, "pendeltåg 41");
+		// skapaTransport(graph, centralstationen, södertälje, 38, 15, "pendeltåg 41");
 
-		findPath(graph, jakobsberg, södertälje, 100, 5);
+		findPath(graph, jakobsberg, södertälje, 1000, 200);
 
-		print(jakobsberg);
+		printStatus(graph);
 	}
 
-	private static void print(TitanVertex aPlace) {
+	private static void printStatus(TitanGraph graph) {
+		Iterators.filter(graph.vertices(), arg0 -> {
+			if (arg0 instanceof TitanVertex) {
+				TitanVertex tVertex = (TitanVertex) arg0;
+				return Objects.equals(tVertex.property("typ").value(), "plats");
+			}
+			return false;
+		}).forEachRemaining(p -> print(p));
+	}
+
+	private static void print(Vertex p) {
 		StringBuffer result = new StringBuffer();
 
-		result.append("från: ").append(aPlace.property("namn").value()).append("\n");
+		result.append("från: ").append(p.property("namn").value()).append("\n");
 
-		Map<String, Edge> incomingEdgesBySourceName = Lists.newArrayList(aPlace.edges(Direction.IN)).stream()
-				.collect(Collectors.toMap(t1 -> (String) t1.outVertex().edges(Direction.IN).next().outVertex()
-						.property("namn").value(), e -> e));
-		Map<String, Edge> outgoingEdgesByTargetName = Lists.newArrayList(aPlace.edges(Direction.OUT)).stream()
-				.collect(Collectors.toMap(t1 -> (String) t1.inVertex().edges(Direction.OUT).next().inVertex()
-						.property("namn").value(), e -> e));
-		
+		Map<String, Edge> incomingEdgesBySourceName = Lists.newArrayList(p.edges(Direction.IN)).stream()
+				.collect(Collectors.toMap(
+						t1 -> (String) t1.outVertex().edges(Direction.IN).next().outVertex().property("namn").value(),
+						e -> e));
+		Map<String, Edge> outgoingEdgesByTargetName = Lists.newArrayList(p.edges(Direction.OUT)).stream()
+				.collect(Collectors.toMap(
+						t1 -> (String) t1.inVertex().edges(Direction.OUT).next().inVertex().property("namn").value(),
+						e -> e));
+
 		Set<String> adjecentPlaceNames = Sets.union(incomingEdgesBySourceName.keySet(),
 				outgoingEdgesByTargetName.keySet());
-		
+
 		adjecentPlaceNames.forEach(tillplats -> {
-			result.append("  till ").append(tillplats);
-			
+			result.append("  till ").append(tillplats).append(" ");
+
 			Integer inLFF = (Integer) incomingEdgesBySourceName.get(tillplats).outVertex().property("lff").value();
 			Integer inFF = (Integer) incomingEdgesBySourceName.get(tillplats).outVertex().property("ff").value();
-			Integer outLFF = (Integer) outgoingEdgesByTargetName.get(tillplats).outVertex().property("lff").value();
-			Integer outFF = (Integer) outgoingEdgesByTargetName.get(tillplats).outVertex().property("ff").value();
-			
+			Integer outLFF = (Integer) outgoingEdgesByTargetName.get(tillplats).inVertex().property("lff").value();
+			Integer outFF = (Integer) outgoingEdgesByTargetName.get(tillplats).inVertex().property("ff").value();
+
 			int x = inFF + inLFF + outFF + outLFF;
-			
-			result.append(x);
+
+			result.append(x).append("\n");
 		});
 
 		System.out.println(result.toString());
@@ -105,8 +117,9 @@ public class FindPath {
 	}
 
 	private static void tick(TitanGraph graph, ArrayList<Ant> ants) {
-		decreaseOdor(graph);
-
+		// decreaseOdor(graph, ants);
+		//printStatus(graph);
+		
 		ants.forEach(t -> {
 			if (t.getWaittime() > 0) {
 				t.decreaseWait();
@@ -157,7 +170,7 @@ public class FindPath {
 		});
 	}
 
-	private static void decreaseOdor(TitanGraph graph) {
+	private static void decreaseOdor(TitanGraph graph, ArrayList<Ant> ants) {
 		UnmodifiableIterator<Vertex> transports = Iterators.filter(graph.vertices(), arg0 -> {
 			if (arg0 instanceof TitanVertex) {
 				TitanVertex tVertex = (TitanVertex) arg0;
@@ -167,6 +180,7 @@ public class FindPath {
 		});
 
 		transports.forEachRemaining(t -> {
+
 			Integer lff = (Integer) t.property("lff").value();
 			Integer ff = (Integer) t.property("ff").value();
 
