@@ -59,19 +59,17 @@ public class CalculatingUnit {
 
 	public void modifyProbabilities(Mode mode) {
 		if (mode == Mode.LFF) {
-			inLFF = - inLFF / 2.0;
+			inLFF = -inLFF / 2.0;
 			inFF = inFF * 2.0;
 		}
 
 		if (mode == Mode.FF) {
 			inLFF = inLFF * 2.0;
-			inFF = - inFF / 2.0;
-			outLFF = outLFF / 2.0;
-			outFF = outFF / 2.0;
+			inFF = -inFF / 2.0;
 		}
 
-		outLFF = outLFF / 2.0;
-		outFF = outFF / 2.0;
+		outLFF = outLFF / 2;
+		outFF = outFF / 2;
 	}
 
 	public static CalculatingUnit randomizeAnExit(Map<String, CalculatingUnit> calculatingUnitsByAdjecentPlaceName) {
@@ -115,7 +113,4 @@ public class CalculatingUnit {
 		return "CalculatingUnit [name=" + name + ", inLFF=" + inLFF + ", inFF=" + inFF + ", outLFF=" + outLFF
 				+ ", outFF=" + outFF + "]";
 	}
-
-	
-	
 }

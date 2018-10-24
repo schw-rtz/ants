@@ -4,8 +4,6 @@ import java.util.Objects;
 
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
-import com.thinkaurelius.titan.core.TitanVertex;
-
 public class Ant {
 
 	private Vertex position;
@@ -13,7 +11,7 @@ public class Ant {
 	private Mode mode = Mode.LFF;
 	private int antName;
 
-	public Ant(int n, TitanVertex a) {
+	public Ant(int n, Vertex a) {
 		antName = n;
 		position = a;
 	}

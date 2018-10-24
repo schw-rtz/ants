@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -22,9 +23,20 @@ import com.thinkaurelius.titan.core.TitanVertex;
 public class FindPath {
 
 	public static void main(String[] args) {
-		TitanGraph graph = TitanFactory
-				.open("C:/pato/dev/graph/titan-1.0.0-hadoop1/conf/" + "titan-berkeleyje.properties");
+		TitanGraph graph = createGraph();
 
+		setUpGraph(graph);
+
+		Vertex jakobsberg = findFirstVertex(graph, t -> Objects.equals(t.property("namn").value(), "Jakobsberg"));
+		Vertex islandstorget = findFirstVertex(graph,
+				t -> Objects.equals(t.property("namn").value(), "Islandstorget"));
+
+		findPath(graph, jakobsberg, islandstorget, 300, 15);
+
+		printStatus(graph);
+	}
+
+	private static void setUpGraph(TitanGraph graph) {
 		TitanVertex jakobsberg = skapaPlats(graph, "Jakobsberg");
 		TitanVertex sundbyberg = skapaPlats(graph, "Sundbyberg");
 		TitanVertex islandstorget = skapaPlats(graph, "Islandstorget");
@@ -53,10 +65,17 @@ public class FindPath {
 		skapaTransport(graph, tc, centralstationen, 5, 0, "Gång");
 		skapaTransport(graph, centralstationen, södertälje, 22, 20, "sj tåg");
 		// skapaTransport(graph, centralstationen, södertälje, 38, 15, "pendeltåg 41");
+	}
 
-		findPath(graph, jakobsberg, islandstorget, 100, 15);
+	private static Vertex findFirstVertex(TitanGraph graph, Predicate<Vertex> predicate) {
+		UnmodifiableIterator<Vertex> x = Iterators.filter(graph.vertices(), arg0 -> predicate.test(arg0));
+		return x.next();
+	}
 
-		printStatus(graph);
+	private static TitanGraph createGraph() {
+		TitanGraph graph = TitanFactory
+				.open("C:/pato/dev/graph/titan-1.0.0-hadoop1/conf/" + "titan-berkeleyje.properties");
+		return graph;
 	}
 
 	private static void printStatus(TitanGraph graph) {
@@ -102,7 +121,7 @@ public class FindPath {
 		System.out.println(result.toString());
 	}
 
-	private static void findPath(TitanGraph graph, TitanVertex a, TitanVertex b, int ticks, int nAnts) {
+	private static void findPath(TitanGraph graph, Vertex a, Vertex b, int ticks, int nAnts) {
 		ArrayList<Ant> ants = new ArrayList<>();
 		for (int i = 0; i < nAnts; i++) {
 			ants.add(new Ant(i, a));
@@ -114,7 +133,7 @@ public class FindPath {
 
 	}
 
-	private static void tick(int tick, TitanGraph graph, ArrayList<Ant> ants, TitanVertex start, TitanVertex goal) {
+	private static void tick(int tick, TitanGraph graph, ArrayList<Ant> ants, Vertex start, Vertex goal) {
 		if (tick % 3 == 0) {
 			decreaseOdor(graph, ants);
 		}
